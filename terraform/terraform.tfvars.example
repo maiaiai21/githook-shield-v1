@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars and edit. Keep terraform.tfvars out of git.
+
+aws_region          = "ap-south-1"
+use_localstack      = true
+localstack_endpoint = "http://localhost:4566"
+
+# Real AWS: set use_localstack = false, pick a globally unique bucket name,
+# and set an address you control for alerts.
+reports_bucket_name = "githook-shield-scan-reports"
+alert_email         = ""
