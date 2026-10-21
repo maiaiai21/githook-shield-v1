@@ -33,22 +33,41 @@
   .wrap { max-width: 1200px; margin: 0 auto; }
 
   /* Header */
-  header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 26px; }
+  header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
   .brand { display: flex; align-items: center; gap: 14px; }
   .brand h1 { margin: 0; font-size: 22px; letter-spacing: 0.3px; }
   .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .pill {
     display: inline-flex; align-items: center; gap: 9px;
     background: var(--panel); border: 1px solid var(--border);
     border-radius: 999px; padding: 8px 14px; font-size: 13px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pass); animation: pulse 2s infinite; }
   .dot.demo { background: var(--warn); animation: none; }
+  .dot.replay { background: var(--accent-2); animation: pulse 1.2s infinite; }
   @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.6); }
     70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
     100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
   }
+  .btn {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    color: #fff; border: 0; border-radius: 999px; padding: 9px 16px;
+    font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .btn:disabled { opacity: 0.6; cursor: default; }
+
+  /* Heartbeat strip: the last 30 outcomes */
+  .strip-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 14px; }
+  .strip-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; }
+  .strip { flex: 1; display: flex; gap: 4px; align-items: flex-end; height: 26px; }
+  .strip span { flex: 1; height: 100%; border-radius: 4px; min-width: 6px; animation: grow 0.5s ease; }
+  .strip .pass { background: var(--pass); }
+  .strip .block { background: var(--block); }
+  .strip .idle { background: var(--panel-2); }
+  @keyframes grow { from { transform: scaleY(0.2); opacity: 0.3; } to { transform: scaleY(1); opacity: 1; } }
 
   /* KPI tiles */
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 18px; }
@@ -61,14 +80,16 @@
   .value { font-size: 34px; font-weight: 700; margin-top: 6px; color: var(--c, var(--text)); font-variant-numeric: tabular-nums; }
   .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
 
-  /* Grid for charts */
+  /* Panels */
   .row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 18px; margin-bottom: 18px; }
   @media (max-width: 860px) { .row { grid-template-columns: 1fr; } }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 18px; }
+  .row .panel { margin-bottom: 0; }
   .panel-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .panel-head h2 { margin: 0; font-size: 14px; }
   .panel-head span { color: var(--muted); font-size: 12px; }
   .panel-body { padding: 18px; }
+  .empty { padding: 26px; color: var(--muted); text-align: center; font-size: 13px; }
 
   /* Donut */
   .donut-wrap { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; justify-content: center; }
@@ -79,12 +100,27 @@
   }
   .donut::before { content: ""; position: absolute; inset: 22px; border-radius: 50%; background: var(--panel); }
   .donut-center { position: relative; text-align: center; }
-  .donut-center b { display: block; font-size: 26px; }
+  .donut-center b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; }
   .donut-center small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; }
   .legend { display: grid; gap: 10px; font-size: 13px; }
   .legend div { display: flex; align-items: center; gap: 8px; color: var(--muted); }
   .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
   .legend b { color: var(--text); margin-left: auto; padding-left: 14px; font-variant-numeric: tabular-nums; }
+
+  /* Live feed */
+  .feed { list-style: none; margin: 0; padding: 0; max-height: 330px; overflow: auto; }
+  .feed li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 18px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .feed li:last-child { border-bottom: none; }
+  .feed li.fresh { animation: slideIn 0.5s ease, flash 2.2s ease; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  @keyframes flash { 0% { background: rgba(91, 140, 255, 0.22); } 100% { background: transparent; } }
+  .tag { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; letter-spacing: 0.4px; }
+  .tag.pass { background: rgba(46, 204, 113, 0.14); color: var(--pass); }
+  .tag.block { background: rgba(255, 92, 92, 0.14); color: var(--block); }
+  .feed .file { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .feed .meta { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .feed .time { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .sample { font-size: 10px; color: var(--warn); border: 1px solid var(--warn); border-radius: 4px; padding: 1px 5px; }
 
   /* Rule bars */
   .rule { margin-bottom: 14px; }
@@ -92,7 +128,6 @@
   .rule-top span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
   .track { height: 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
   .fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.6s ease; }
-  .empty { padding: 26px; color: var(--muted); text-align: center; font-size: 13px; }
 
   /* Table */
   .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -117,6 +152,17 @@
   .eval td.best { color: var(--pass); font-weight: 700; }
   .note { color: var(--muted); font-size: 12px; margin-top: 12px; line-height: 1.5; }
 
+  /* Toasts */
+  #toasts { position: fixed; right: 20px; bottom: 20px; display: grid; gap: 10px; z-index: 10; max-width: 320px; }
+  .toast {
+    background: var(--panel-2); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+    border-radius: 12px; padding: 12px 16px; font-size: 13px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); animation: slideIn 0.4s ease;
+  }
+  .toast.block { border-left-color: var(--block); }
+  .toast.pass { border-left-color: var(--pass); }
+  .toast b { display: block; margin-bottom: 2px; }
+
   footer { color: var(--muted); font-size: 12px; margin-top: 20px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 </style>
 </head>
@@ -134,8 +180,18 @@
         <p>Secret scanning and commit protection · live scan activity</p>
       </div>
     </div>
-    <div class="pill"><span class="dot" id="dot"></span><span id="status">Connecting…</span></div>
+    <div class="controls">
+      <div class="pill" id="clock">--:--:--</div>
+      <div class="pill"><span class="dot" id="dot"></span><span id="status">Connecting…</span></div>
+      <button class="btn" id="replayBtn">▶ Replay sample activity</button>
+    </div>
   </header>
+
+  <section class="strip-wrap">
+    <div class="strip-label">Last 30 scans</div>
+    <div class="strip" id="strip"><span class="idle"></span></div>
+    <div class="strip-label" id="ago">waiting…</div>
+  </section>
 
   <section class="kpis">
     <div class="card" style="--c: var(--accent)"><div class="label">Files scanned</div><div class="value" id="kTotal">0</div><div class="sub" id="kTotalSub">no data yet</div></div>
@@ -146,7 +202,7 @@
 
   <section class="row">
     <div class="panel">
-      <div class="panel-head"><h2>Outcome</h2><span id="lastScan">—</span></div>
+      <div class="panel-head"><h2>Outcome</h2><span>all events</span></div>
       <div class="panel-body">
         <div class="donut-wrap">
           <div class="donut" id="donut"><div class="donut-center"><b id="dCenter">0</b><small>events</small></div></div>
@@ -159,12 +215,30 @@
     </div>
 
     <div class="panel">
-      <div class="panel-head"><h2>What got caught</h2><span>by rule</span></div>
-      <div class="panel-body" id="rules"><div class="empty">No findings yet.</div></div>
+      <div class="panel-head"><h2>Live feed</h2><span>newest first</span></div>
+      <ul class="feed" id="feed"><li class="empty">Waiting for activity…</li></ul>
     </div>
   </section>
 
-  <section class="panel" style="margin-bottom: 18px">
+  <section class="row">
+    <div class="panel">
+      <div class="panel-head"><h2>What got caught</h2><span>by rule</span></div>
+      <div class="panel-body" id="rules"><div class="empty">No findings yet.</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Scanner comparison</h2><span>evaluation/results.json</span></div>
+      <div class="table-scroll">
+        <table class="eval" id="evalTable">
+          <thead><tr><th>Tool</th><th>Precision</th><th>Recall</th><th>F1</th><th>False positives</th><th>Scan time (s)</th></tr></thead>
+          <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="panel-body"><p class="note" id="evalNote"></p></div>
+    </div>
+  </section>
+
+  <section class="panel">
     <div class="panel-head">
       <h2>Scan activity</h2>
       <div class="toolbar">
@@ -181,72 +255,130 @@
     </div>
   </section>
 
-  <section class="panel">
-    <div class="panel-head"><h2>Scanner comparison</h2><span>evaluation/results.json · labeled dataset</span></div>
-    <div class="table-scroll">
-      <table class="eval" id="evalTable">
-        <thead><tr><th>Tool</th><th>Precision</th><th>Recall</th><th>F1</th><th>False positives</th><th>Scan time (s)</th></tr></thead>
-        <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
-      </table>
-    </div>
-    <div class="panel-body"><p class="note" id="evalNote"></p></div>
-  </section>
-
   <footer>
-    <span>Auto-refreshes every 5 seconds</span>
+    <span>Checks scan-log.json every 5 seconds. A commit made while this page is open appears here within seconds.</span>
     <span>Reads ../scan-log.json and ../evaluation/results.json</span>
   </footer>
 </div>
 
+<div id="toasts"></div>
+
 <script>
   const LOG_URL = "../scan-log.json";
   const EVAL_URL = "../evaluation/results.json";
-  let logRows = [];
-  let filter = "all";
+  const POLL_MS = 5000;
 
-  // Shown only when scan-log.json cannot be loaded (for example, opened as a file://).
+  // Shown when scan-log.json is missing or empty, so the page is never blank.
   const DEMO_ROWS = [
     { time: "2026-10-21 11:12", file: "app.py", line: "-", result: "pass", rule: "-" },
     { time: "2026-10-21 11:12", file: "db.py", line: "1", result: "block", rule: "credential-assignment" },
     { time: "2026-10-21 11:12", file: "broken.py", line: "1", result: "block", rule: "syntax-error" },
-    { time: "2026-10-21 11:13", file: "config.env", line: "4", result: "block", rule: "aws-access-key-id" },
     { time: "2026-10-21 11:14", file: "README.md", line: "-", result: "pass", rule: "-" },
+  ];
+
+  // Sample events streamed by the "Replay" button. Tagged as SAMPLE in the feed.
+  const REPLAY_SCRIPT = [
+    { file: "utils.py", line: "-", result: "pass", rule: "-" },
+    { file: "config.py", line: "7", result: "block", rule: "aws-access-key-id" },
+    { file: "auth.py", line: "12", result: "block", rule: "credential-assignment" },
+    { file: "README.md", line: "-", result: "pass", rule: "-" },
+    { file: "broken.py", line: "1", result: "block", rule: "syntax-error" },
+    { file: "api.py", line: "-", result: "pass", rule: "-" },
+    { file: "settings.py", line: "9", result: "block", rule: "credential-assignment" },
+    { file: "app.py", line: "-", result: "pass", rule: "-" },
   ];
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  function setStatus(live) {
-    $("dot").classList.toggle("demo", !live);
-    $("status").textContent = live ? "Live · " + new Date().toLocaleTimeString() : "Demo data (serve the project to see live results)";
+  let logRows = [];
+  let sourceLive = false;
+  let replayRows = [];
+  let replayTimer = null;
+  let filter = "all";
+  let lastUpdate = null;
+  let shownSig = null;
+  let shownCount = 0;
+  let initialized = false;
+
+  function nowStamp() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
+  function animateNumber(el, to, suffix = "") {
+    const from = Number(el.dataset.v || 0);
+    el.dataset.v = to;
+    const start = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - start) / 600);
+      const eased = 1 - Math.pow(1 - k, 3);
+      el.textContent = Math.round(from + (to - from) * eased) + suffix;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function allRows() {
+    return logRows.concat(replayRows);
+  }
+
+  function setStatus() {
+    const mode = replayTimer ? "replay" : sourceLive ? "live" : "sample";
+    $("dot").className = "dot" + (mode === "replay" ? " replay" : mode === "sample" ? " demo" : "");
+    $("status").textContent =
+      mode === "live" ? "Live · watching scan-log.json"
+      : mode === "replay" ? "Replaying sample activity"
+      : "Sample data · make a commit to go live";
   }
 
   async function loadLog() {
     try {
       const res = await fetch(LOG_URL + "?t=" + Date.now(), { cache: "no-store" });
       if (!res.ok) throw new Error(res.status);
-      const text = await res.text();
-      // The hook appends one JSON object per line; accept a JSON array too.
-      logRows = text.trim().startsWith("[")
+      const text = (await res.text()).trim();
+      const rows = text.startsWith("[")
         ? JSON.parse(text)
         : text.split("\n").filter(Boolean).map((l) => JSON.parse(l));
-      setStatus(true);
+      sourceLive = rows.length > 0;
+      logRows = sourceLive ? rows : DEMO_ROWS;
     } catch (e) {
+      sourceLive = false;
       logRows = DEMO_ROWS;
-      setStatus(false);
     }
+    lastUpdate = Date.now();
   }
 
-  function renderKpis(rows) {
+  // Re-render only when the event list changed, so animations don't replay on every poll.
+  function applyRows() {
+    const rows = allRows();
+    const last = rows[rows.length - 1];
+    const sig = rows.length + "|" + (last ? JSON.stringify(last) : "");
+    if (sig !== shownSig) {
+      const newItems = initialized ? rows.slice(shownCount) : [];
+      shownSig = sig;
+      shownCount = rows.length;
+      renderAll(rows, newItems);
+      newItems.slice(-3).forEach(toast);
+      initialized = true;
+    }
+    setStatus();
+  }
+
+  function renderAll(rows, newItems) {
     const total = rows.length;
     const blocked = rows.filter((r) => r.result === "block").length;
     const passed = total - blocked;
     const rate = total ? Math.round((blocked / total) * 100) : 0;
-    $("kTotal").textContent = total;
-    $("kTotalSub").textContent = total ? "since the log started" : "no data yet";
-    $("kPass").textContent = passed;
-    $("kBlock").textContent = blocked;
-    $("kRate").textContent = rate + "%";
+
+    animateNumber($("kTotal"), total);
+    animateNumber($("kPass"), passed);
+    animateNumber($("kBlock"), blocked);
+    animateNumber($("kRate"), rate, "%");
+    $("kTotalSub").textContent = !sourceLive && !replayRows.length ? "sample data"
+      : total ? "events recorded" : "waiting for first commit";
+
     $("dCenter").textContent = total;
     $("lPass").textContent = passed;
     $("lBlock").textContent = blocked;
@@ -254,8 +386,47 @@
     $("donut").style.background = total
       ? `conic-gradient(var(--pass) 0deg ${deg}deg, var(--block) ${deg}deg 360deg)`
       : "var(--panel-2)";
-    const last = rows[rows.length - 1];
-    $("lastScan").textContent = last ? "last event " + last.time : "—";
+
+    renderStrip(rows);
+    renderFeed(rows, newItems);
+    renderRules(rows);
+    renderTable(rows);
+  }
+
+  function renderStrip(rows) {
+    const recent = rows.slice(-30);
+    $("strip").innerHTML = recent.length
+      ? recent.map((r) => `<span class="${r.result}" title="${esc(r.file)}"></span>`).join("")
+      : '<span class="idle"></span>';
+  }
+
+  function renderFeed(rows, newItems) {
+    const newFrom = rows.length - newItems.length;
+    const recent = rows.slice(-12);
+    const base = rows.length - recent.length;
+    const html = recent
+      .map((r, k) => ({ r, idx: base + k }))
+      .reverse()
+      .map(({ r, idx }) => `
+        <li class="${idx >= newFrom && newItems.length ? "fresh" : ""}">
+          <span class="tag ${esc(r.result)}">${r.result === "block" ? "BLOCKED" : "PASSED"}</span>
+          <code class="file">${esc(r.file)}</code>
+          ${r.sample ? '<span class="sample">SAMPLE</span>' : ""}
+          <span class="meta">${r.rule && r.rule !== "-" ? esc(r.rule) : "clean"}</span>
+          <span class="time">${esc(r.time || "")}</span>
+        </li>`)
+      .join("");
+    $("feed").innerHTML = html || '<li class="empty">Waiting for activity…</li>';
+  }
+
+  function toast(r) {
+    const el = document.createElement("div");
+    el.className = "toast " + r.result;
+    el.innerHTML = r.result === "block"
+      ? `<b>Commit blocked</b>${esc(r.file)} · ${esc(r.rule)}`
+      : `<b>Clean commit</b>${esc(r.file)}`;
+    $("toasts").appendChild(el);
+    setTimeout(() => el.remove(), 4500);
   }
 
   function renderRules(rows) {
@@ -288,7 +459,7 @@
     }
     $("rows").innerHTML = visible.map((r) => `
       <tr>
-        <td>${esc(r.time)}</td>
+        <td>${esc(r.time || "-")}</td>
         <td><code>${esc(r.file)}</code></td>
         <td class="${r.result === "block" ? "line-ref" : ""}">${esc(r.line)}</td>
         <td><span class="badge ${esc(r.result)}">${r.result === "block" ? "BLOCKED" : "PASSED"}</span></td>
@@ -296,41 +467,58 @@
       </tr>`).join("");
   }
 
-  async function renderEval() {
+  function startReplay() {
+    if (replayTimer) return;
+    let i = 0;
+    const btn = $("replayBtn");
+    btn.disabled = true;
+    btn.textContent = "Replaying…";
+    replayTimer = setInterval(() => {
+      if (i >= REPLAY_SCRIPT.length) {
+        clearInterval(replayTimer);
+        replayTimer = null;
+        btn.disabled = false;
+        btn.textContent = "▶ Replay sample activity";
+        applyRows();
+        return;
+      }
+      replayRows.push({ ...REPLAY_SCRIPT[i++], time: nowStamp(), sample: true });
+      applyRows();
+    }, 1400);
+  }
+
+  function renderEval(data) {
+    const r = data.results || {};
+    const labels = Object.keys(r);
+    if (!labels.length) return;
+    const bestF1 = Math.max(...labels.map((l) => r[l].f1));
+    $("evalTable").querySelector("tbody").innerHTML = labels.map((l) => {
+      const t = (data.scan_seconds || {})[l];
+      const time = t ? (t[0] + t[1]).toFixed(3) : "-";
+      return `<tr>
+        <td>${esc(l)}</td>
+        <td>${r[l].precision.toFixed(2)}</td>
+        <td>${r[l].recall.toFixed(2)}</td>
+        <td${r[l].f1 === bestF1 ? ' class="best"' : ""}>${r[l].f1.toFixed(2)}</td>
+        <td>${r[l].fp}</td>
+        <td>${time}</td>
+      </tr>`;
+    }).join("");
+    const d = data.dataset || {};
+    $("evalNote").textContent =
+      `Dataset: ${d.positives} files with one synthetic secret, ${d.negatives} clean files. ` +
+      "Best F1 is highlighted. The dataset is small, so treat these numbers as indicative.";
+  }
+
+  async function loadEval() {
     try {
       const res = await fetch(EVAL_URL + "?t=" + Date.now(), { cache: "no-store" });
       if (!res.ok) throw new Error(res.status);
-      const data = await res.json();
-      const r = data.results || {};
-      const labels = Object.keys(r);
-      const bestF1 = Math.max(...labels.map((l) => r[l].f1));
-      $("evalTable").querySelector("tbody").innerHTML = labels.map((l) => {
-        const t = (data.scan_seconds || {})[l];
-        const time = t ? (t[0] + t[1]).toFixed(3) : "-";
-        const cls = (v) => (v === bestF1 ? ' class="best"' : "");
-        return `<tr>
-          <td>${esc(l)}</td>
-          <td>${r[l].precision.toFixed(2)}</td>
-          <td>${r[l].recall.toFixed(2)}</td>
-          <td${cls(r[l].f1)}>${r[l].f1.toFixed(2)}</td>
-          <td>${r[l].fp}</td>
-          <td>${time}</td>
-        </tr>`;
-      }).join("");
-      const d = data.dataset || {};
-      $("evalNote").textContent =
-        `Dataset: ${d.positives} files with one synthetic secret, ${d.negatives} clean files. ` +
-        "Best F1 is highlighted. The dataset is small, so treat these numbers as indicative.";
+      renderEval(await res.json());
     } catch (e) {
       $("evalTable").querySelector("tbody").innerHTML =
         '<tr><td colspan="6" class="empty">Run evaluation/run_eval.py to generate results.json.</td></tr>';
     }
-  }
-
-  function render() {
-    renderKpis(logRows);
-    renderRules(logRows);
-    renderTable(logRows);
   }
 
   document.querySelectorAll(".chip").forEach((btn) =>
@@ -338,18 +526,29 @@
       document.querySelectorAll(".chip").forEach((b) => b.classList.remove("on"));
       btn.classList.add("on");
       filter = btn.dataset.filter;
-      renderTable(logRows);
+      renderTable(allRows());
     })
   );
 
-  async function refresh() {
+  $("replayBtn").addEventListener("click", startReplay);
+
+  // Ticking clock and "updated Ns ago" label
+  setInterval(() => {
+    $("clock").textContent = new Date().toLocaleTimeString();
+    if (lastUpdate) $("ago").textContent = "updated " + Math.round((Date.now() - lastUpdate) / 1000) + "s ago";
+  }, 1000);
+
+  async function init() {
     await loadLog();
-    render();
+    applyRows();
+    await loadEval();
+    setInterval(async () => {
+      await loadLog();
+      applyRows();
+    }, POLL_MS);
   }
 
-  refresh();
-  renderEval();
-  setInterval(refresh, 5000);
+  init();
 </script>
 </body>
 </html>
