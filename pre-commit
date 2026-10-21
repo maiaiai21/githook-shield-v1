@@ -1,0 +1,5 @@
+#!/bin/sh
+# GitHook Shield pre-commit hook. Delegates to the scanner, which checks
+# staged secrets and syntax and appends results to scan-log.json.
+ROOT="$(git rev-parse --show-toplevel)"
+exec python3 "$ROOT/scanner/secretscan.py" --staged --log "$ROOT/scan-log.json"
