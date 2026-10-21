@@ -3,10 +3,7 @@
     "positives": 30,
     "negatives": 30
   },
-  "skipped_tools": [
-    "Gitleaks",
-    "detect-secrets"
-  ],
+  "skipped_tools": [],
   "results": {
     "GitHook Shield (ours)": {
       "tp": 23,
@@ -26,12 +23,74 @@
         "pos_28_twilio-sid.yaml"
       ],
       "false_positives": []
+    },
+    "Gitleaks": {
+      "tp": 24,
+      "fn": 6,
+      "fp": 2,
+      "tn": 28,
+      "precision": 0.923,
+      "recall": 0.8,
+      "f1": 0.857,
+      "missed_positives": [
+        "pos_18_generic-password.env",
+        "pos_19_db-password-var.env",
+        "pos_27_twilio-sid.env",
+        "pos_28_twilio-sid.yaml",
+        "pos_29_private-key-header.yaml",
+        "pos_30_private-key-header.sh"
+      ],
+      "false_positives": [
+        "neg_07.sh",
+        "neg_19.sh"
+      ]
+    },
+    "detect-secrets": {
+      "tp": 28,
+      "fn": 2,
+      "fp": 18,
+      "tn": 12,
+      "precision": 0.609,
+      "recall": 0.933,
+      "f1": 0.737,
+      "missed_positives": [
+        "pos_15_jwt-token.sh",
+        "pos_16_jwt-token.py"
+      ],
+      "false_positives": [
+        "neg_01.env",
+        "neg_02.yaml",
+        "neg_04.py",
+        "neg_06.yaml",
+        "neg_07.sh",
+        "neg_08.py",
+        "neg_11.sh",
+        "neg_13.env",
+        "neg_14.yaml",
+        "neg_16.py",
+        "neg_18.yaml",
+        "neg_19.sh",
+        "neg_20.py",
+        "neg_23.sh",
+        "neg_25.env",
+        "neg_26.yaml",
+        "neg_28.py",
+        "neg_30.yaml"
+      ]
     }
   },
   "scan_seconds": {
     "GitHook Shield (ours)": [
       0.002,
       0.002
+    ],
+    "Gitleaks": [
+      0.031,
+      0.029
+    ],
+    "detect-secrets": [
+      1.571,
+      0.601
     ]
   },
   "per_category_recall": {
@@ -51,6 +110,40 @@
       "slack-token": "2/2",
       "stripe-live-key": "2/2",
       "twilio-sid": "0/2"
+    },
+    "Gitleaks": {
+      "aws-access-key-id": "2/2",
+      "aws-secret-key": "2/2",
+      "db-password-var": "1/2",
+      "generic-api-key": "2/2",
+      "generic-password": "1/2",
+      "github-pat": "2/2",
+      "google-api-key": "2/2",
+      "hex-secret-key": "2/2",
+      "jwt-token": "2/2",
+      "mailgun-key": "2/2",
+      "npm-token": "2/2",
+      "private-key-header": "0/2",
+      "slack-token": "2/2",
+      "stripe-live-key": "2/2",
+      "twilio-sid": "0/2"
+    },
+    "detect-secrets": {
+      "aws-access-key-id": "2/2",
+      "aws-secret-key": "2/2",
+      "db-password-var": "2/2",
+      "generic-api-key": "2/2",
+      "generic-password": "2/2",
+      "github-pat": "2/2",
+      "google-api-key": "2/2",
+      "hex-secret-key": "2/2",
+      "jwt-token": "0/2",
+      "mailgun-key": "2/2",
+      "npm-token": "2/2",
+      "private-key-header": "2/2",
+      "slack-token": "2/2",
+      "stripe-live-key": "2/2",
+      "twilio-sid": "2/2"
     }
   }
 }

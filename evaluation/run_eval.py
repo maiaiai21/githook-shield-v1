@@ -43,14 +43,22 @@ def scan_gitleaks(directory: Path):
     report = ROOT / "_gitleaks.json"
     start = time.perf_counter()
     subprocess.run(
-        ["gitleaks", "dir", str(directory), "--no-banner", "--exit-code", "0",
+        ["gitleaks", "detect", "--source", str(directory), "--no-git", "--no-banner", "--exit-code", "0",
          "--report-format", "json", "--report-path", str(report)],
         check=True, capture_output=True,
     )
     elapsed = time.perf_counter() - start
     findings = json.loads(report.read_text() or "null") if report.exists() else None
     report.unlink(missing_ok=True)
-    return {Path(f["File"]).name for f in (findings or [])}, elapsed
+    
+    flagged = set()
+    if findings:
+        for f in findings:
+            filepath = f.get("file") or f.get("File")
+            if filepath:
+                flagged.add(Path(filepath).name)
+                
+    return flagged, elapsed
 
 
 def scan_detect_secrets(directory: Path):
