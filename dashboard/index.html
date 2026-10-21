@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHook Shield · Security Dashboard</title>
+<style>
+  :root {
+    --bg: #0a0c12;
+    --panel: #141823;
+    --panel-2: #1a2030;
+    --text: #e8ebf3;
+    --muted: #8b93a7;
+    --pass: #2ecc71;
+    --block: #ff5c5c;
+    --warn: #f0b429;
+    --accent: #5b8cff;
+    --accent-2: #9d7bff;
+    --border: #232a3b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: 28px;
+    color: var(--text);
+    background:
+      radial-gradient(900px 500px at 0% -10%, rgba(91, 140, 255, 0.18), transparent 60%),
+      radial-gradient(800px 500px at 100% 0%, rgba(157, 123, 255, 0.14), transparent 60%),
+      var(--bg);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+
+  /* Header */
+  header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 26px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand h1 { margin: 0; font-size: 22px; letter-spacing: 0.3px; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 9px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 999px; padding: 8px 14px; font-size: 13px; color: var(--muted);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pass); animation: pulse 2s infinite; }
+  .dot.demo { background: var(--warn); animation: none; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.6); }
+    70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+  }
+
+  /* KPI tiles */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 18px; }
+  .card {
+    background: linear-gradient(180deg, var(--panel), #111520);
+    border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; position: relative; overflow: hidden;
+  }
+  .card::after { content: ""; position: absolute; inset: auto 0 0 0; height: 3px; background: var(--c, var(--accent)); opacity: 0.8; }
+  .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .value { font-size: 34px; font-weight: 700; margin-top: 6px; color: var(--c, var(--text)); font-variant-numeric: tabular-nums; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+  /* Grid for charts */
+  .row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 18px; margin-bottom: 18px; }
+  @media (max-width: 860px) { .row { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .panel-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .panel-head h2 { margin: 0; font-size: 14px; }
+  .panel-head span { color: var(--muted); font-size: 12px; }
+  .panel-body { padding: 18px; }
+
+  /* Donut */
+  .donut-wrap { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  .donut {
+    width: 170px; height: 170px; border-radius: 50%;
+    display: grid; place-items: center; position: relative;
+    transition: background 0.6s ease;
+  }
+  .donut::before { content: ""; position: absolute; inset: 22px; border-radius: 50%; background: var(--panel); }
+  .donut-center { position: relative; text-align: center; }
+  .donut-center b { display: block; font-size: 26px; }
+  .donut-center small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; }
+  .legend { display: grid; gap: 10px; font-size: 13px; }
+  .legend div { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .legend b { color: var(--text); margin-left: auto; padding-left: 14px; font-variant-numeric: tabular-nums; }
+
+  /* Rule bars */
+  .rule { margin-bottom: 14px; }
+  .rule-top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .rule-top span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .track { height: 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+  .fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.6s ease; }
+  .empty { padding: 26px; color: var(--muted); text-align: center; font-size: 13px; }
+
+  /* Table */
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  .chip.on { color: var(--text); border-color: var(--accent); }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 560px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; background: #111520; }
+  tbody tr:hover { background: var(--panel-2); }
+  tr:last-child td { border-bottom: none; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; }
+  .badge.pass { background: rgba(46, 204, 113, 0.14); color: var(--pass); }
+  .badge.block { background: rgba(255, 92, 92, 0.14); color: var(--block); }
+  .line-ref { color: var(--block); }
+
+  /* Evaluation table */
+  .eval td.best { color: var(--pass); font-weight: 700; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 12px; line-height: 1.5; }
+
+  footer { color: var(--muted); font-size: 12px; margin-top: 20px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2 L20 5 V11 C20 16 16.5 20.5 12 22 C7.5 20.5 4 16 4 11 V5 Z" fill="#5b8cff"/>
+        <path d="M9 12 L11 14 L15 10" stroke="#0a0c12" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <div>
+        <h1>GitHook Shield</h1>
+        <p>Secret scanning and commit protection · live scan activity</p>
+      </div>
+    </div>
+    <div class="pill"><span class="dot" id="dot"></span><span id="status">Connecting…</span></div>
+  </header>
+
+  <section class="kpis">
+    <div class="card" style="--c: var(--accent)"><div class="label">Files scanned</div><div class="value" id="kTotal">0</div><div class="sub" id="kTotalSub">no data yet</div></div>
+    <div class="card" style="--c: var(--pass)"><div class="label">Passed</div><div class="value" id="kPass">0</div><div class="sub">clean files</div></div>
+    <div class="card" style="--c: var(--block)"><div class="label">Blocked</div><div class="value" id="kBlock">0</div><div class="sub">commits stopped</div></div>
+    <div class="card" style="--c: var(--accent-2)"><div class="label">Block rate</div><div class="value" id="kRate">0%</div><div class="sub">share of scanned files</div></div>
+  </section>
+
+  <section class="row">
+    <div class="panel">
+      <div class="panel-head"><h2>Outcome</h2><span id="lastScan">—</span></div>
+      <div class="panel-body">
+        <div class="donut-wrap">
+          <div class="donut" id="donut"><div class="donut-center"><b id="dCenter">0</b><small>events</small></div></div>
+          <div class="legend">
+            <div><i style="background: var(--pass)"></i>Passed <b id="lPass">0</b></div>
+            <div><i style="background: var(--block)"></i>Blocked <b id="lBlock">0</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>What got caught</h2><span>by rule</span></div>
+      <div class="panel-body" id="rules"><div class="empty">No findings yet.</div></div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-bottom: 18px">
+    <div class="panel-head">
+      <h2>Scan activity</h2>
+      <div class="toolbar">
+        <button class="chip on" data-filter="all">All</button>
+        <button class="chip" data-filter="block">Blocked</button>
+        <button class="chip" data-filter="pass">Passed</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Time</th><th>File</th><th>Line</th><th>Result</th><th>Rule</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Scanner comparison</h2><span>evaluation/results.json · labeled dataset</span></div>
+    <div class="table-scroll">
+      <table class="eval" id="evalTable">
+        <thead><tr><th>Tool</th><th>Precision</th><th>Recall</th><th>F1</th><th>False positives</th><th>Scan time (s)</th></tr></thead>
+        <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="panel-body"><p class="note" id="evalNote"></p></div>
+  </section>
+
+  <footer>
+    <span>Auto-refreshes every 5 seconds</span>
+    <span>Reads ../scan-log.json and ../evaluation/results.json</span>
+  </footer>
+</div>
+
+<script>
+  const LOG_URL = "../scan-log.json";
+  const EVAL_URL = "../evaluation/results.json";
+  let logRows = [];
+  let filter = "all";
+
+  // Shown only when scan-log.json cannot be loaded (for example, opened as a file://).
+  const DEMO_ROWS = [
+    { time: "2026-10-21 11:12", file: "app.py", line: "-", result: "pass", rule: "-" },
+    { time: "2026-10-21 11:12", file: "db.py", line: "1", result: "block", rule: "credential-assignment" },
+    { time: "2026-10-21 11:12", file: "broken.py", line: "1", result: "block", rule: "syntax-error" },
+    { time: "2026-10-21 11:13", file: "config.env", line: "4", result: "block", rule: "aws-access-key-id" },
+    { time: "2026-10-21 11:14", file: "README.md", line: "-", result: "pass", rule: "-" },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function setStatus(live) {
+    $("dot").classList.toggle("demo", !live);
+    $("status").textContent = live ? "Live · " + new Date().toLocaleTimeString() : "Demo data (serve the project to see live results)";
+  }
+
+  async function loadLog() {
+    try {
+      const res = await fetch(LOG_URL + "?t=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status);
+      const text = await res.text();
+      // The hook appends one JSON object per line; accept a JSON array too.
+      logRows = text.trim().startsWith("[")
+        ? JSON.parse(text)
+        : text.split("\n").filter(Boolean).map((l) => JSON.parse(l));
+      setStatus(true);
+    } catch (e) {
+      logRows = DEMO_ROWS;
+      setStatus(false);
+    }
+  }
+
+  function renderKpis(rows) {
+    const total = rows.length;
+    const blocked = rows.filter((r) => r.result === "block").length;
+    const passed = total - blocked;
+    const rate = total ? Math.round((blocked / total) * 100) : 0;
+    $("kTotal").textContent = total;
+    $("kTotalSub").textContent = total ? "since the log started" : "no data yet";
+    $("kPass").textContent = passed;
+    $("kBlock").textContent = blocked;
+    $("kRate").textContent = rate + "%";
+    $("dCenter").textContent = total;
+    $("lPass").textContent = passed;
+    $("lBlock").textContent = blocked;
+    const deg = total ? (passed / total) * 360 : 0;
+    $("donut").style.background = total
+      ? `conic-gradient(var(--pass) 0deg ${deg}deg, var(--block) ${deg}deg 360deg)`
+      : "var(--panel-2)";
+    const last = rows[rows.length - 1];
+    $("lastScan").textContent = last ? "last event " + last.time : "—";
+  }
+
+  function renderRules(rows) {
+    const counts = {};
+    rows.filter((r) => r.result === "block").forEach((r) => {
+      counts[r.rule] = (counts[r.rule] || 0) + 1;
+    });
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (!entries.length) {
+      $("rules").innerHTML = '<div class="empty">No findings yet. Make a commit with a fake secret to see one.</div>';
+      return;
+    }
+    const max = entries[0][1];
+    $("rules").innerHTML = entries.map(([rule, n]) => `
+      <div class="rule">
+        <div class="rule-top"><span><code>${esc(rule)}</code></span><span>${n}</span></div>
+        <div class="track"><div class="fill" style="width:${(n / max) * 100}%"></div></div>
+      </div>`).join("");
+  }
+
+  function renderTable(rows) {
+    const visible = rows
+      .filter((r) => filter === "all" || r.result === filter)
+      .slice()
+      .reverse()
+      .slice(0, 100);
+    if (!visible.length) {
+      $("rows").innerHTML = '<tr><td colspan="5" class="empty">Nothing to show for this filter.</td></tr>';
+      return;
+    }
+    $("rows").innerHTML = visible.map((r) => `
+      <tr>
+        <td>${esc(r.time)}</td>
+        <td><code>${esc(r.file)}</code></td>
+        <td class="${r.result === "block" ? "line-ref" : ""}">${esc(r.line)}</td>
+        <td><span class="badge ${esc(r.result)}">${r.result === "block" ? "BLOCKED" : "PASSED"}</span></td>
+        <td>${r.rule && r.rule !== "-" ? "<code>" + esc(r.rule) + "</code>" : "-"}</td>
+      </tr>`).join("");
+  }
+
+  async function renderEval() {
+    try {
+      const res = await fetch(EVAL_URL + "?t=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      const r = data.results || {};
+      const labels = Object.keys(r);
+      const bestF1 = Math.max(...labels.map((l) => r[l].f1));
+      $("evalTable").querySelector("tbody").innerHTML = labels.map((l) => {
+        const t = (data.scan_seconds || {})[l];
+        const time = t ? (t[0] + t[1]).toFixed(3) : "-";
+        const cls = (v) => (v === bestF1 ? ' class="best"' : "");
+        return `<tr>
+          <td>${esc(l)}</td>
+          <td>${r[l].precision.toFixed(2)}</td>
+          <td>${r[l].recall.toFixed(2)}</td>
+          <td${cls(r[l].f1)}>${r[l].f1.toFixed(2)}</td>
+          <td>${r[l].fp}</td>
+          <td>${time}</td>
+        </tr>`;
+      }).join("");
+      const d = data.dataset || {};
+      $("evalNote").textContent =
+        `Dataset: ${d.positives} files with one synthetic secret, ${d.negatives} clean files. ` +
+        "Best F1 is highlighted. The dataset is small, so treat these numbers as indicative.";
+    } catch (e) {
+      $("evalTable").querySelector("tbody").innerHTML =
+        '<tr><td colspan="6" class="empty">Run evaluation/run_eval.py to generate results.json.</td></tr>';
+    }
+  }
+
+  function render() {
+    renderKpis(logRows);
+    renderRules(logRows);
+    renderTable(logRows);
+  }
+
+  document.querySelectorAll(".chip").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".chip").forEach((b) => b.classList.remove("on"));
+      btn.classList.add("on");
+      filter = btn.dataset.filter;
+      renderTable(logRows);
+    })
+  );
+
+  async function refresh() {
+    await loadLog();
+    render();
+  }
+
+  refresh();
+  renderEval();
+  setInterval(refresh, 5000);
+</script>
+</body>
+</html>

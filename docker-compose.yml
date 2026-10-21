@@ -1,0 +1,10 @@
+services:
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,ecr,sns,ec2,iam,sts
+      - DEBUG=0
+    volumes:
+      - "./.localstack:/var/lib/localstack"
