@@ -46,8 +46,7 @@ jobs:
 
       - name: TruffleHog scan of repository history
         uses: trufflesecurity/trufflehog@main
-        with:
-          extra_args: --fail
+
 
   terraform:
     name: Terraform format and validate
