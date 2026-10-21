@@ -1,0 +1,6 @@
+scan-log.json
+__pycache__/
+*.pyc
+.terraform/
+*.tfstate
+*.tfstate.*
