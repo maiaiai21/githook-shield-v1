@@ -1,0 +1,87 @@
+name: GitHook Shield CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Unit tests and syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install app dependencies
+        run: pip install -r app/requirements.txt
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Compile check
+        run: python -m compileall -q app scanner
+
+  secret-scan:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # TruffleHog needs history
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: GitHook Shield scanner on all tracked files
+        run: git ls-files -z | xargs -0 python3 scanner/secretscan.py
+
+      - name: TruffleHog scan of repository history
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --fail
+
+  build-and-scan:
+    name: Build image and scan for vulnerabilities
+    needs: [test, secret-scan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build container image
+        run: docker build -t githook-shield:${{ github.sha }} ./app
+
+      - name: Trivy scan (fails on HIGH or CRITICAL fixable issues)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: githook-shield:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Trivy JSON report for archiving
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: githook-shield:${{ github.sha }}
+          format: json
+          output: trivy-report.json
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          exit-code: "0"
+
+      - name: Archive scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-reports
+          path: trivy-report.json
+          if-no-files-found: ignore

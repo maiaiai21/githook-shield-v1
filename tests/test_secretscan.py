@@ -1,8 +1,8 @@
 """Tests for the GitHook Shield scanner.
 
-Fake secrets are assembled from fragments at runtime so this file never
-contains a complete token-shaped string. That keeps the repo's own pre-commit
-hook from blocking commits to this project.
+Fake secrets are assembled from fragments at runtime, so this file never
+contains a complete credential assignment. That keeps the repo's own
+pre-commit hook and CI secret scan from flagging this project's tests.
 """
 import os
 import subprocess
@@ -20,6 +20,11 @@ def rules(text, name="sample.py"):
     return [f.rule for f in secretscan.scan_text(text, name)]
 
 
+def assign(name, value):
+    """Build a 'name = "value"' line without writing the full line in source."""
+    return name + ' = "' + value + '"'
+
+
 class SecretDetectionTests(unittest.TestCase):
     def test_aws_access_key_detected(self):
         key = "AKIA" + "Z7Q3XR2M5PLZ8WYN"
@@ -35,15 +40,16 @@ class SecretDetectionTests(unittest.TestCase):
 
     def test_db_password_detected(self):
         # Regression: Gitleaks missed this in our evaluation.
-        self.assertIn("credential-assignment", rules('DB_PASSWORD = "Sup3rS3cretP4ssw0rd!"'))
+        line = assign("DB_" + "PASSWORD", "Sup3r" + "S3cretP4ssw0rd!")
+        self.assertIn("credential-assignment", rules(line))
 
     def test_prefixed_api_key_detected(self):
-        self.assertIn("credential-assignment",
-                      rules('payment_api_key = "8f3kQ9xLp2Zr7WmT4vNc1BhD6sYe0JgU"'))
+        line = assign("payment_api_key", "8f3kQ9xLp2Zr7" + "WmT4vNc1BhD6sYe0JgU")
+        self.assertIn("credential-assignment", rules(line))
 
     def test_json_style_password_detected(self):
-        self.assertIn("credential-assignment",
-                      rules('{"password": "Tr0ub4dor&3xK9pQ"}', "config.json"))
+        line = "{" + '"pass' + 'word": "Tr0ub4dor&3xK9pQ"}'
+        self.assertIn("credential-assignment", rules(line, "config.json"))
 
 
 class FalsePositiveTests(unittest.TestCase):
@@ -66,7 +72,7 @@ class FalsePositiveTests(unittest.TestCase):
         self.assertEqual(rules(code), [])
 
     def test_line_numbers_reported(self):
-        text = "x = 1\n\napi_key = \"8f3kQ9xLp2Zr7WmT4vNc1BhD6sYe0JgU\"\n"
+        text = "x = 1\n\n" + assign("api_key", "8f3kQ9xLp2Zr7" + "WmT4vNc1BhD6sYe0JgU") + "\n"
         findings = secretscan.scan_text(text, "a.py")
         self.assertEqual(findings[0].line, 3)
 
@@ -125,7 +131,7 @@ class StagedModeTests(unittest.TestCase):
         self.assertIn('"result": "pass"', log)
 
     def test_staged_secret_blocked_and_logged(self):
-        content = 'api_key = "8f3kQ9xLp2Zr7WmT4vNc1BhD6sYe0JgU"\n'
+        content = assign("api_key", "8f3kQ9xLp2Zr7" + "WmT4vNc1BhD6sYe0JgU") + "\n"
         code, out, log = self._run_in_repo("config.py", content)
         self.assertEqual(code, 1)
         self.assertIn("Commit blocked", out)
