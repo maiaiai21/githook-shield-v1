@@ -175,8 +175,6 @@ Scan times on the dataset are about 0.003 seconds for our scanner, about 1.4 sec
 - `git commit --no-verify` skips the local hook. CI is the second line of defense.
 - Pattern-based detection misses secrets in formats it doesn't know, and unusual names.
 - A short password below the entropy threshold passes. The demo shows this, and the threshold is deliberately unchanged to avoid more false positives.
-- The TruffleHog action is pinned to `@main`, not a release tag, so an upstream change could break the step.
-- The LocalStack demo is a local stand-in. It doesn't show a real AWS deployment, and the default Grafana and monitoring setup from the earlier Minikube work is not part of this version.
 
 ## Repository secrets (for real AWS)
 
@@ -195,9 +193,3 @@ python3 -m unittest discover -s tests -v
 ```
 
 The scanner tests cover secret detection, false positives, syntax checks, and staged-mode behavior. The app tests cover `/` and `/health`.
-
-## Planned work
-
-- Pin the TruffleHog action to a release tag.
-- Add an SQS subscription to the alert topic, so alerts can be read back in the terminal.
-- Run the LocalStack demo end to end and record it for the presentation.
