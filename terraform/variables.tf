@@ -22,6 +22,12 @@ variable "app_image" {
   default     = "githook-shield:dev"
 }
 
+variable "dashboard_image" {
+  description = "Docker image for the security activity dashboard, loaded into Minikube."
+  type        = string
+  default     = "githook-shield-dashboard:dev"
+}
+
 variable "app_replicas" {
   description = "Number of application pods."
   type        = number

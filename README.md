@@ -10,8 +10,8 @@ The project uses open-source, local infrastructure and does not require AWS or L
 - **Blocks broken code at commit time.** Staged `.py`, `.json`, and `.sh` files must pass a syntax check.
 - **Re-checks everything in CI.** GitHub Actions runs the tests, scans every tracked file with the same scanner, scans the full Git history with TruffleHog, validates Terraform, builds the Docker image, and scans it with Trivy.
 - **Builds and scans the app image.** GitHub Actions builds the Docker image and archives vulnerability reports as workflow artifacts.
-- **Deploys and monitors locally.** Terraform manages the Kubernetes app resources and installs Prometheus and Grafana for cluster metrics.
-- **Shows activity live.** A dashboard reads the scan log and updates within seconds.
+- **Deploys and monitors locally.** Terraform manages the Kubernetes app and security dashboard, and installs Prometheus and Grafana for cluster metrics.
+- **Shows scan activity.** The Kubernetes-hosted dashboard polls its scan-log snapshot every five seconds; run Terraform apply to refresh it from the local scan log.
 - **Measures itself.** A labeled dataset compares the scanner with Gitleaks and detect-secrets.
 
 ## Architecture
@@ -34,6 +34,9 @@ flowchart TD
     Image -->|minikube image build| Cluster
     Dev -->|terraform apply| TF[Terraform]
     TF --> App[App Deployment and ClusterIP Service]
+    TF --> SecurityDash[Security dashboard Deployment and Service]
+    Log -->|Terraform ConfigMap snapshot| SecurityDash
+    SecurityDash --> SecurityDashAccess[kubectl port-forward]
     TF --> Helm[Prometheus and Grafana Helm release]
     Helm --> Metrics[Cluster metrics<br/>node and pod health, CPU, memory, restarts]
     Metrics --> Grafana[Grafana dashboards]
@@ -53,7 +56,7 @@ evaluation/                  labeled dataset, evaluation script, results
 hooks/pre-commit             commit-time hook
 scanner/secretscan.py        custom secret scanner and syntax checks
 scripts/                     install, demo, and live sample scripts
-terraform/                   Kubernetes app and Prometheus/Grafana resources
+terraform/                   Kubernetes app/dashboard and Prometheus/Grafana resources
 tests/                       unit tests for the scanner and the app
 ```
 
@@ -123,6 +126,9 @@ Start Minikube with enough resources for the monitoring chart, then build the im
 ```
 minikube start --cpus=4 --memory=6144
 minikube image build -t githook-shield:dev ./app
+docker pull nginx:1.27-alpine
+docker build -f dashboard/Dockerfile -t githook-shield-dashboard:dev .
+minikube image load githook-shield-dashboard:dev
 ```
 
 Apply the Kubernetes resources:
@@ -139,10 +145,11 @@ Access the app and Grafana in separate terminals:
 
 ```
 kubectl port-forward -n githook-shield svc/githook-shield 5000:80
+kubectl port-forward -n githook-shield svc/githook-shield-dashboard 8000:80
 kubectl port-forward -n monitoring svc/githook-shield-grafana 3000:80
 ```
 
-Open `http://localhost:5000/health` and `http://localhost:3000`. Grafana's chart-generated admin password is stored in a Kubernetes Secret; retrieve it with:
+Open `http://localhost:5000/health`, `http://localhost:8000/dashboard/`, and `http://localhost:3000`. The security dashboard is served from Kubernetes; its scan log and evaluation results are Terraform-managed ConfigMap data, refreshed from the local files whenever `terraform apply` runs. The page polls the mounted data every five seconds. Grafana's chart-generated admin password is stored in a Kubernetes Secret; retrieve it with:
 
 ```
 kubectl get secret -n monitoring githook-shield-grafana \
@@ -157,15 +164,15 @@ kubectl port-forward -n monitoring svc/githook-shield-kube-promet-prometheus 909
 
 Open `http://localhost:9090` to inspect Prometheus directly. Prometheus and Grafana use node-exporter and kube-state-metrics for cluster and pod dashboards; the separate Minikube metrics-server addon is not required. Terraform manages the app and Helm release; do not also apply `deployment.yaml` for the same app. Run `terraform destroy` to remove Terraform-managed resources from Minikube.
 
-### Dashboard (`dashboard/`)
+### Security dashboard (`dashboard/`)
 
-A single page that shows scan activity: a live feed, KPI tiles, a rule breakdown, and a comparison table. It refreshes every 5 seconds and falls back to sample data when there's no log.
+A single page served by the Kubernetes dashboard Deployment. It shows scan activity, KPI tiles, rule breakdown, and a comparison table. It refreshes the mounted log every 5 seconds and falls back to sample activity when there is no log. Changes written to the local `scan-log.json` are copied to Kubernetes when you run `terraform apply`.
 
 ```
-python3 -m http.server 8000
+kubectl port-forward -n githook-shield svc/githook-shield-dashboard 8000:80
 ```
 
-Open `http://localhost:8000/dashboard/`. See [`dashboard/README.md`](dashboard/README.md) for details and the live demo script.
+Open `http://localhost:8000/dashboard/`. To refresh the deployed dashboard data after generating new local scan events, run `terraform apply` again.
 
 ### Evaluation (`evaluation/`)
 
@@ -220,5 +227,3 @@ python3 -m unittest discover -s tests -v
 ```
 
 The scanner tests cover secret detection, false positives, syntax checks, and staged-mode behavior. The app tests cover `/` and `/health`.
-
-

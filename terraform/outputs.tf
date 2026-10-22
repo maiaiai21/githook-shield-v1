@@ -8,6 +8,11 @@ output "app_service" {
   value       = kubernetes_service_v1.app.metadata[0].name
 }
 
+output "dashboard_service" {
+  description = "ClusterIP service for the security activity dashboard."
+  value       = kubernetes_service_v1.dashboard.metadata[0].name
+}
+
 output "monitoring_namespace" {
   description = "Namespace containing Prometheus and Grafana."
   value       = helm_release.monitoring.namespace
