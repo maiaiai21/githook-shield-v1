@@ -149,7 +149,7 @@ kubectl port-forward -n githook-shield svc/githook-shield-dashboard 8000:80
 kubectl port-forward -n monitoring svc/githook-shield-grafana 3000:80
 ```
 
-Open `http://localhost:5000/health`, `http://localhost:8000/dashboard/`, and `http://localhost:3000`. The security dashboard is served from Kubernetes; its scan log and evaluation results are Terraform-managed ConfigMap data, refreshed from the local files whenever `terraform apply` runs. The page polls the mounted data every five seconds. Grafana's chart-generated admin password is stored in a Kubernetes Secret; retrieve it with:
+Open `http://localhost:5000/health`, `http://localhost:8000/` (or `/dashboard/`), and `http://localhost:3000`. The security dashboard is served from Kubernetes; its scan log and evaluation results are Terraform-managed ConfigMap data, refreshed from the local files whenever `terraform apply` runs. The page polls the mounted data every five seconds. Grafana's chart-generated admin password is stored in a Kubernetes Secret; retrieve it with:
 
 ```
 kubectl get secret -n monitoring githook-shield-grafana \
@@ -172,7 +172,7 @@ A single page served by the Kubernetes dashboard Deployment. It shows scan activ
 kubectl port-forward -n githook-shield svc/githook-shield-dashboard 8000:80
 ```
 
-Open `http://localhost:8000/dashboard/`. To refresh the deployed dashboard data after generating new local scan events, run `terraform apply` again.
+Open `http://localhost:8000/` (or `http://localhost:8000/dashboard/`). To refresh the deployed dashboard data after generating new local scan events, run `terraform apply` again.
 
 ### Evaluation (`evaluation/`)
 
