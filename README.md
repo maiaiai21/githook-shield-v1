@@ -216,9 +216,22 @@ Scan times on the dataset are about 0.003 seconds for our scanner, about 1.4 sec
 - `git commit --no-verify` skips the local hook. CI is the second line of defense.
 - Pattern-based detection misses secrets in formats it doesn't know, and unusual names.
 - A short password below the entropy threshold passes. The demo shows this, and the threshold is deliberately unchanged to avoid more false positives.
+<<<<<<< HEAD
 - The TruffleHog action is pinned to `@main`, not a release tag, so an upstream change could break the step.
 - Cluster metrics cover Kubernetes and node behavior; the Flask app does not currently expose application metrics such as request rate or latency.
 - Prometheus and Grafana consume additional local CPU, memory, and disk. Start Minikube with sufficient resources for the monitoring chart.
+=======
+
+## Repository secrets (for real AWS)
+
+The CI steps that upload reports and publish alerts read these secrets. Without them, those steps skip:
+
+- `REPORTS_BUCKET`
+- `SNS_TOPIC_ARN`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
+>>>>>>> 63de705c1174157f7ee8d3c2dcccf793060ab9ea
 
 ## Running the tests
 
