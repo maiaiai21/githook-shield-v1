@@ -127,9 +127,6 @@ resource "kubernetes_deployment_v1" "dashboard" {
 
     template {
       metadata {
-        annotations = {
-          "githook-shield/dashboard-data-checksum" = sha256(jsonencode(kubernetes_config_map_v1.dashboard_data.data))
-        }
         labels = {
           app = "githook-shield-dashboard"
         }
@@ -177,15 +174,7 @@ resource "kubernetes_deployment_v1" "dashboard" {
 
           volume_mount {
             name       = "dashboard-data"
-            mount_path = "/usr/share/nginx/html/scan-log.json"
-            sub_path   = "scan-log.json"
-            read_only  = true
-          }
-
-          volume_mount {
-            name       = "dashboard-data"
-            mount_path = "/usr/share/nginx/html/evaluation/results.json"
-            sub_path   = "results.json"
+            mount_path = "/data"
             read_only  = true
           }
         }

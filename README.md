@@ -127,8 +127,8 @@ Start Minikube with enough resources for the monitoring chart, then build the im
 minikube start --cpus=4 --memory=6144
 minikube image build -t githook-shield:dev ./app
 docker pull nginx:1.27-alpine
-docker build -f dashboard/Dockerfile -t githook-shield-dashboard:dev .
-minikube image load githook-shield-dashboard:dev
+docker build -f dashboard/Dockerfile -t githook-shield-dashboard:dev-live-config .
+minikube image load githook-shield-dashboard:dev-live-config
 ```
 
 Apply the Kubernetes resources:
@@ -149,7 +149,7 @@ kubectl port-forward -n githook-shield svc/githook-shield-dashboard 8000:80
 kubectl port-forward -n monitoring svc/githook-shield-grafana 3000:80
 ```
 
-Open `http://localhost:5000/health`, `http://localhost:8000/` (or `/dashboard/`), and `http://localhost:3000`. The security dashboard is served from Kubernetes; its scan log and evaluation results are Terraform-managed ConfigMap data, refreshed from the local files whenever `terraform apply` runs. A checksum annotation rolls the dashboard pod when this data changes, so its mounted files update too. The page polls the mounted data every five seconds. Grafana's chart-generated admin password is stored in a Kubernetes Secret; retrieve it with:
+Open `http://localhost:5000/health`, `http://localhost:8000/` (or `/dashboard/`), and `http://localhost:3000`. The security dashboard is served from Kubernetes; its scan log and evaluation results are Terraform-managed ConfigMap data, refreshed from the local files whenever `terraform apply` runs. Kubernetes updates the projected ConfigMap files in place, so refreshing data does not restart the dashboard pod or interrupt its Service connection. The page polls the mounted data every five seconds. Grafana's chart-generated admin password is stored in a Kubernetes Secret; retrieve it with:
 
 ```
 kubectl get secret -n monitoring githook-shield-grafana \
@@ -166,7 +166,7 @@ Open `http://localhost:9090` to inspect Prometheus directly. Prometheus and Graf
 
 ### Security dashboard (`dashboard/`)
 
-A single page served by the Kubernetes dashboard Deployment. It shows scan activity, KPI tiles, rule breakdown, and a comparison table. It refreshes the mounted log every 5 seconds and falls back to sample activity when there is no log. Changes written to the local `scan-log.json` are copied to Kubernetes when you run `terraform apply`, which automatically rolls the pod to refresh mounted data.
+A single page served by the Kubernetes dashboard Deployment. It shows scan activity, KPI tiles, rule breakdown, and a comparison table. It refreshes the mounted log every 5 seconds and falls back to sample activity when there is no log. Changes written to the local `scan-log.json` are copied to Kubernetes when you run `terraform apply`; the ConfigMap volume updates without restarting the dashboard pod.
 
 ```
 kubectl port-forward -n githook-shield svc/githook-shield-dashboard 8000:80
