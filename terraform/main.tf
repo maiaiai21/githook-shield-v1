@@ -127,6 +127,9 @@ resource "kubernetes_deployment_v1" "dashboard" {
 
     template {
       metadata {
+        annotations = {
+          "githook-shield/dashboard-data-checksum" = sha256(jsonencode(kubernetes_config_map_v1.dashboard_data.data))
+        }
         labels = {
           app = "githook-shield-dashboard"
         }
