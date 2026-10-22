@@ -122,7 +122,6 @@ Start Minikube with enough resources for the monitoring chart, then build the im
 
 ```
 minikube start --cpus=4 --memory=6144
-minikube addons enable metrics-server
 minikube image build -t githook-shield:dev ./app
 ```
 
@@ -156,7 +155,7 @@ Use the Grafana username `admin`. The Prometheus service is also available local
 kubectl port-forward -n monitoring svc/githook-shield-kube-promet-prometheus 9090:9090
 ```
 
-Open `http://localhost:9090` to inspect Prometheus directly. `kubectl top nodes` and `kubectl top pods -A` show current resource usage through metrics-server. Terraform manages the app and Helm release; do not also apply `deployment.yaml` for the same app. Run `terraform destroy` to remove Terraform-managed resources from Minikube.
+Open `http://localhost:9090` to inspect Prometheus directly. Prometheus and Grafana use node-exporter and kube-state-metrics for cluster and pod dashboards; the separate Minikube metrics-server addon is not required. Terraform manages the app and Helm release; do not also apply `deployment.yaml` for the same app. Run `terraform destroy` to remove Terraform-managed resources from Minikube.
 
 ### Dashboard (`dashboard/`)
 
@@ -222,7 +221,4 @@ python3 -m unittest discover -s tests -v
 
 The scanner tests cover secret detection, false positives, syntax checks, and staged-mode behavior. The app tests cover `/` and `/health`.
 
-## Planned work
 
-- Pin the TruffleHog action to a release tag.
-- Add application-level metrics if request and latency monitoring becomes useful.

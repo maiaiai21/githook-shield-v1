@@ -17,3 +17,12 @@ nodeExporter:
 
 kubeStateMetrics:
   enabled: true
+
+kubeControllerManager:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
