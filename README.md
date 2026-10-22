@@ -11,7 +11,7 @@ The project uses open-source, local infrastructure and does not require AWS or L
 - **Re-checks everything in CI.** GitHub Actions runs the tests, scans every tracked file with the same scanner, scans the full Git history with TruffleHog, validates Terraform, builds the Docker image, and scans it with Trivy.
 - **Builds and scans the app image.** GitHub Actions builds the Docker image and archives vulnerability reports as workflow artifacts.
 - **Deploys and monitors locally.** Terraform manages the Kubernetes app and security dashboard, and installs Prometheus and Grafana for cluster metrics.
-- **Shows scan activity.** The Kubernetes-hosted dashboard polls its scan-log snapshot every five seconds; run Terraform apply to refresh it from the local scan log.
+- **Shows scan activity.** A dashboard runs in Kubernetes and polls its scan-log snapshot every five seconds. Run Terraform apply to copy new local scan results into the cluster.
 - **Measures itself.** A labeled dataset compares the scanner with Gitleaks and detect-secrets.
 
 ## Architecture
@@ -21,7 +21,7 @@ flowchart TD
     Dev[Developer] --> Hook[Pre-commit hook]
     Hook --> Scanner[Secret and syntax scanner]
     Scanner --> Log[Local scan-log.json]
-    Log --> ScanDashboard[Local scan activity dashboard]
+    Log --> ScanDashboard[Local scan-log file]
 
     Dev -->|push or pull request| CI[GitHub Actions]
     CI --> Tests[Tests and secret scans]
@@ -30,16 +30,16 @@ flowchart TD
     CI --> TFCheck[Terraform format and validation]
 
     Dev -->|start| Cluster[Minikube Kubernetes cluster]
-    Dev -->|local deployment| Image[Build Docker image]
-    Image -->|minikube image build| Cluster
+    Dev -->|Docker build and minikube image load| Image[App and dashboard images]
+    Image --> Cluster
     Dev -->|terraform apply| TF[Terraform]
     TF --> App[App Deployment and ClusterIP Service]
     TF --> SecurityDash[Security dashboard Deployment and Service]
-    Log -->|Terraform ConfigMap snapshot| SecurityDash
+    Log -->|Terraform-managed ConfigMap snapshot| SecurityDash
     SecurityDash --> SecurityDashAccess[kubectl port-forward]
     TF --> Helm[Prometheus and Grafana Helm release]
     Helm --> Metrics[Cluster metrics<br/>node and pod health, CPU, memory, restarts]
-    Metrics --> Grafana[Grafana dashboards]
+    Metrics --> Grafana[Grafana cluster dashboards]
     App --> AppAccess[kubectl port-forward to app]
     Grafana --> GrafanaAccess[kubectl port-forward to Grafana]
 ```
@@ -51,7 +51,7 @@ CI checks Terraform configuration but does not apply it: the GitHub-hosted runne
 ```
 .github/workflows/ci.yml     CI pipeline
 app/                         Flask service, Dockerfile, requirements
-dashboard/                   local scan activity dashboard
+dashboard/                   Kubernetes-hosted security activity dashboard
 evaluation/                  labeled dataset, evaluation script, results
 hooks/pre-commit             commit-time hook
 scanner/secretscan.py        custom secret scanner and syntax checks
@@ -62,7 +62,7 @@ tests/                       unit tests for the scanner and the app
 
 ## Quick start
 
-For the local Kubernetes deployment, install Git, Python 3.12 or newer, Docker, Minikube, kubectl, and Terraform 1.9.8 or newer. Terraform's Helm provider installs the monitoring chart; the Helm CLI is optional. The scanner and unit tests can be used without Minikube or Terraform.
+For the local Kubernetes deployment, install Git, Python 3.12 or newer, Docker, Minikube, kubectl, and Terraform 1.9.8 or newer. Terraform's Helm provider installs the monitoring chart; the Helm CLI is optional. The scanner and unit tests can be used without Minikube or Terraform. No AWS account, AWS credentials, or LocalStack installation is needed.
 
 ```
 pip install -r app/requirements.txt
@@ -117,31 +117,31 @@ python3 app/app.py
 curl http://localhost:5000/health
 ```
 
-### Local Kubernetes and monitoring (`terraform/`)
+### Kubernetes deployment and monitoring (`terraform/`)
 
-Terraform uses the current Minikube kubeconfig context to create the application namespace, Deployment, and ClusterIP Service. It also installs the Prometheus community `kube-prometheus-stack` chart with Alertmanager disabled. Prometheus scrapes Kubernetes and node metrics; Grafana provides dashboards for cluster and pod behavior. The Flask app itself is not instrumented with application-specific Prometheus metrics.
+Terraform uses the current Minikube kubeconfig context to create the application namespace, Flask Deployment and Service, security dashboard Deployment and Service, dashboard data ConfigMap, and Prometheus/Grafana Helm release. Alertmanager is disabled. Prometheus scrapes available Kubernetes and node metrics; Grafana provides dashboards for cluster and pod behavior. The Flask app itself is not instrumented with application-specific Prometheus metrics.
 
-Start Minikube with enough resources for the monitoring chart, then build the image directly into its image store:
+Start Minikube with enough resources for the monitoring chart. Build the images with Docker and load them into Minikube:
 
 ```
 minikube start --cpus=4 --memory=6144
-minikube image build -t githook-shield:dev ./app
 docker pull nginx:1.27-alpine
+docker build -t githook-shield:dev ./app
+minikube image load githook-shield:dev
 docker build -f dashboard/Dockerfile -t githook-shield-dashboard:dev-live-config .
 minikube image load githook-shield-dashboard:dev-live-config
 ```
 
-Apply the Kubernetes resources:
+Initialize Terraform once, then plan and apply the Kubernetes resources:
 
 ```
-cd terraform
-terraform init
-terraform validate
-terraform plan
-terraform apply
+terraform -chdir=terraform init
+terraform -chdir=terraform validate
+terraform -chdir=terraform plan
+terraform -chdir=terraform apply
 ```
 
-Access the app and Grafana in separate terminals:
+Run each port-forward in a separate terminal and keep those terminals open:
 
 ```
 kubectl port-forward -n githook-shield svc/githook-shield 5000:80
@@ -149,7 +149,11 @@ kubectl port-forward -n githook-shield svc/githook-shield-dashboard 8000:80
 kubectl port-forward -n monitoring svc/githook-shield-grafana 3000:80
 ```
 
-Open `http://localhost:5000/health`, `http://localhost:8000/` (or `/dashboard/`), and `http://localhost:3000`. The security dashboard is served from Kubernetes; its scan log and evaluation results are Terraform-managed ConfigMap data, refreshed from the local files whenever `terraform apply` runs. Kubernetes updates the projected ConfigMap files in place, so refreshing data does not restart the dashboard pod or interrupt its Service connection. The page polls the mounted data every five seconds. Grafana's chart-generated admin password is stored in a Kubernetes Secret; retrieve it with:
+Open the Flask health check at `http://localhost:5000/health`, the security activity dashboard at `http://localhost:8000/` (or `/dashboard/`), and Grafana at `http://localhost:3000`. The dashboard and Grafana are separate interfaces: the custom dashboard displays scanner results, while Grafana displays cluster metrics.
+
+The security dashboard reads its scan log and evaluation results from a Kubernetes ConfigMap. Terraform copies the local `scan-log.json` and `evaluation/results.json` into the ConfigMap when apply runs. The projected files update in place without restarting the dashboard pod; allow a short time for Kubernetes to propagate an update. The page polls the data every five seconds.
+
+Grafana's admin password is stored in a Kubernetes Secret; retrieve it with:
 
 ```
 kubectl get secret -n monitoring githook-shield-grafana \
@@ -162,17 +166,17 @@ Use the Grafana username `admin`. The Prometheus service is also available local
 kubectl port-forward -n monitoring svc/githook-shield-kube-promet-prometheus 9090:9090
 ```
 
-Open `http://localhost:9090` to inspect Prometheus directly. Prometheus and Grafana use node-exporter and kube-state-metrics for cluster and pod dashboards; the separate Minikube metrics-server addon is not required. Terraform manages the app and Helm release; do not also apply `deployment.yaml` for the same app. Run `terraform destroy` to remove Terraform-managed resources from Minikube.
+Open `http://localhost:9090` to inspect Prometheus directly. Prometheus and Grafana use node-exporter and kube-state-metrics for cluster and pod dashboards; the separate Minikube metrics-server addon is not required. Terraform manages the app, dashboard, and monitoring release; do not also apply `deployment.yaml` for the same app. Run `terraform -chdir=terraform destroy` to remove Terraform-managed resources from Minikube.
 
 ### Security dashboard (`dashboard/`)
 
-A single page served by the Kubernetes dashboard Deployment. It shows scan activity, KPI tiles, rule breakdown, and a comparison table. It refreshes the mounted log every 5 seconds and falls back to sample activity when there is no log. Changes written to the local `scan-log.json` are copied to Kubernetes when you run `terraform apply`; the ConfigMap volume updates without restarting the dashboard pod.
+A single page served by the Kubernetes dashboard Deployment. It shows scan activity, KPI tiles, rule breakdown, and a comparison table. It refreshes the mounted log every five seconds and falls back to sample activity when there is no log. Changes written to local `scan-log.json` are copied to Kubernetes when you run `terraform -chdir=terraform apply`; the ConfigMap volume updates without restarting the dashboard pod.
 
 ```
 kubectl port-forward -n githook-shield svc/githook-shield-dashboard 8000:80
 ```
 
-Open `http://localhost:8000/` (or `http://localhost:8000/dashboard/`). To refresh the deployed dashboard data after generating new local scan events, run `terraform apply` again.
+Open `http://localhost:8000/` (or `http://localhost:8000/dashboard/`). To refresh the deployed dashboard data after generating new local scan events, run `terraform -chdir=terraform apply` again. Reapplying does not normally interrupt the dashboard connection because the pod is not restarted for ConfigMap-only changes.
 
 ### Evaluation (`evaluation/`)
 
@@ -216,22 +220,9 @@ Scan times on the dataset are about 0.003 seconds for our scanner, about 1.4 sec
 - `git commit --no-verify` skips the local hook. CI is the second line of defense.
 - Pattern-based detection misses secrets in formats it doesn't know, and unusual names.
 - A short password below the entropy threshold passes. The demo shows this, and the threshold is deliberately unchanged to avoid more false positives.
-<<<<<<< HEAD
 - The TruffleHog action is pinned to `@main`, not a release tag, so an upstream change could break the step.
 - Cluster metrics cover Kubernetes and node behavior; the Flask app does not currently expose application metrics such as request rate or latency.
 - Prometheus and Grafana consume additional local CPU, memory, and disk. Start Minikube with sufficient resources for the monitoring chart.
-=======
-
-## Repository secrets (for real AWS)
-
-The CI steps that upload reports and publish alerts read these secrets. Without them, those steps skip:
-
-- `REPORTS_BUCKET`
-- `SNS_TOPIC_ARN`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_REGION`
->>>>>>> 63de705c1174157f7ee8d3c2dcccf793060ab9ea
 
 ## Running the tests
 
@@ -240,3 +231,4 @@ python3 -m unittest discover -s tests -v
 ```
 
 The scanner tests cover secret detection, false positives, syntax checks, and staged-mode behavior. The app tests cover `/` and `/health`.
+
