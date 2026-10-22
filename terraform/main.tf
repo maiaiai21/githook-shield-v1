@@ -1,99 +1,112 @@
-# --- Scan report storage -----------------------------------------------------
-
-resource "aws_s3_bucket" "reports" {
-  bucket        = var.reports_bucket_name
-  force_destroy = true # demo environment: allow terraform destroy with reports inside
-}
-
-resource "aws_s3_bucket_versioning" "reports" {
-  bucket = aws_s3_bucket.reports.id
-  versioning_configuration {
-    status = "Enabled"
+resource "kubernetes_namespace_v1" "app" {
+  metadata {
+    name = var.app_namespace
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "reports" {
-  bucket                  = aws_s3_bucket.reports.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
+resource "kubernetes_deployment_v1" "app" {
+  metadata {
+    name      = "githook-shield"
+    namespace = kubernetes_namespace_v1.app.metadata[0].name
+    labels = {
+      app = "githook-shield"
+    }
+  }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "reports" {
-  bucket = aws_s3_bucket.reports.id
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+  spec {
+    replicas = var.app_replicas
+
+    selector {
+      match_labels = {
+        app = "githook-shield"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "githook-shield"
+        }
+      }
+
+      spec {
+        container {
+          name              = "flask-app"
+          image             = var.app_image
+          image_pull_policy = "IfNotPresent"
+
+          port {
+            name           = "http"
+            container_port = 5000
+          }
+
+          readiness_probe {
+            http_get {
+              path = "/health"
+              port = 5000
+            }
+            initial_delay_seconds = 5
+            period_seconds        = 10
+          }
+
+          liveness_probe {
+            http_get {
+              path = "/health"
+              port = 5000
+            }
+            initial_delay_seconds = 15
+            period_seconds        = 20
+          }
+
+          resources {
+            requests = {
+              cpu    = "50m"
+              memory = "64Mi"
+            }
+            limits = {
+              cpu    = "250m"
+              memory = "128Mi"
+            }
+          }
+        }
+      }
     }
   }
 }
 
-# --- Container registry ------------------------------------------------------
+resource "kubernetes_service_v1" "app" {
+  metadata {
+    name      = "githook-shield"
+    namespace = kubernetes_namespace_v1.app.metadata[0].name
+  }
 
-resource "aws_ecr_repository" "app" {
-  name                 = var.ecr_repository_name
-  image_tag_mutability = "IMMUTABLE"
-  force_delete         = true
+  spec {
+    selector = {
+      app = "githook-shield"
+    }
 
-  image_scanning_configuration {
-    scan_on_push = true # ECR runs its own scan on every pushed image
+    port {
+      name        = "http"
+      port        = 80
+      target_port = 5000
+    }
+
+    type = "ClusterIP"
   }
 }
 
-resource "aws_ecr_lifecycle_policy" "app" {
-  repository = aws_ecr_repository.app.name
-  policy = jsonencode({
-    rules = [{
-      rulePriority = 1
-      description  = "Keep the 10 most recent images"
-      selection = {
-        tagStatus   = "any"
-        countType   = "imageCountMoreThan"
-        countNumber = 10
-      }
-      action = { type = "expire" }
-    }]
-  })
-}
+resource "helm_release" "monitoring" {
+  name             = "githook-shield"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "kube-prometheus-stack"
+  version          = var.monitoring_chart_version
+  namespace        = var.monitoring_namespace
+  create_namespace = true
+  wait             = true
+  timeout          = 600
+  cleanup_on_fail  = true
 
-# --- Network access ----------------------------------------------------------
-
-data "aws_vpc" "default" {
-  default = true
-}
-
-resource "aws_security_group" "app" {
-  name        = "githook-shield-app"
-  description = "Allow the app port from the internal network only"
-  vpc_id      = data.aws_vpc.default.id
-
-  ingress {
-    description = "App HTTP"
-    from_port   = var.app_port
-    to_port     = var.app_port
-    protocol    = "tcp"
-    cidr_blocks = [var.allowed_cidr]
-  }
-
-  egress {
-    description = "All outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# --- Alerting ----------------------------------------------------------------
-
-resource "aws_sns_topic" "alerts" {
-  name = "githook-shield-alerts"
-}
-
-resource "aws_sns_topic_subscription" "email" {
-  count     = var.alert_email == "" ? 0 : 1
-  topic_arn = aws_sns_topic.alerts.arn
-  protocol  = "email"
-  endpoint  = var.alert_email
+  values = [
+    file("${path.module}/monitoring-values.yaml")
+  ]
 }

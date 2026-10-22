@@ -1,19 +1,24 @@
-output "reports_bucket" {
-  description = "S3 bucket for CI scan reports."
-  value       = aws_s3_bucket.reports.bucket
+output "app_namespace" {
+  description = "Namespace containing the application."
+  value       = kubernetes_namespace_v1.app.metadata[0].name
 }
 
-output "ecr_repository_url" {
-  description = "ECR repository URL for pushing the app image."
-  value       = aws_ecr_repository.app.repository_url
+output "app_service" {
+  description = "ClusterIP service for the Flask app."
+  value       = kubernetes_service_v1.app.metadata[0].name
 }
 
-output "alerts_topic_arn" {
-  description = "SNS topic that receives build and scan failure alerts."
-  value       = aws_sns_topic.alerts.arn
+output "monitoring_namespace" {
+  description = "Namespace containing Prometheus and Grafana."
+  value       = helm_release.monitoring.namespace
 }
 
-output "app_security_group_id" {
-  description = "Security group attached to the app."
-  value       = aws_security_group.app.id
+output "grafana_service" {
+  description = "Grafana service name for kubectl port-forward."
+  value       = "${helm_release.monitoring.name}-grafana"
+}
+
+output "prometheus_service" {
+  description = "Prometheus service name for kubectl port-forward."
+  value       = "${helm_release.monitoring.name}-kube-promet-prometheus"
 }

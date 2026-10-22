@@ -43,5 +43,5 @@ Dataset: 30 files with one synthetic secret each, 30 files with none.
 ## Scan time, seconds (positives dir / negatives dir)
 
 - **GitHook Shield (ours)**: 0.002 / 0.002
-- **Gitleaks**: 0.031 / 0.029
-- **detect-secrets**: 1.571 / 0.601
+- **Gitleaks**: 0.477 / 0.047
+- **detect-secrets**: 2.719 / 0.592

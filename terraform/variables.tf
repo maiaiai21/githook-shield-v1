@@ -1,47 +1,46 @@
-variable "aws_region" {
-  description = "AWS region for all resources."
+variable "kubeconfig_path" {
+  description = "Path to the kubeconfig used to connect Terraform to Minikube."
   type        = string
-  default     = "ap-south-1"
+  default     = "~/.kube/config"
 }
 
-variable "use_localstack" {
-  description = "Point the AWS provider at a LocalStack gateway instead of real AWS."
-  type        = bool
-  default     = true
-}
-
-variable "localstack_endpoint" {
-  description = "LocalStack gateway URL, used only when use_localstack is true."
+variable "kube_context" {
+  description = "Kubernetes context to manage."
   type        = string
-  default     = "http://localhost:4566"
+  default     = "minikube"
 }
 
-variable "reports_bucket_name" {
-  description = "S3 bucket that stores CI scan reports. Must be globally unique on real AWS."
-  type        = string
-  default     = "githook-shield-scan-reports"
-}
-
-variable "ecr_repository_name" {
-  description = "ECR repository for the application image."
+variable "app_namespace" {
+  description = "Kubernetes namespace for the application."
   type        = string
   default     = "githook-shield"
 }
 
-variable "alert_email" {
-  description = "Email address subscribed to the alert topic. Leave empty to skip the subscription."
+variable "app_image" {
+  description = "Docker image already loaded into the Minikube cluster."
   type        = string
-  default     = ""
+  default     = "githook-shield:dev"
 }
 
-variable "app_port" {
-  description = "Port the Flask app listens on. Used to open the security group."
+variable "app_replicas" {
+  description = "Number of application pods."
   type        = number
-  default     = 5000
+  default     = 1
+
+  validation {
+    condition     = var.app_replicas >= 1
+    error_message = "app_replicas must be at least 1."
+  }
 }
 
-variable "allowed_cidr" {
-  description = "CIDR block allowed to reach the app port."
+variable "monitoring_namespace" {
+  description = "Kubernetes namespace for Prometheus and Grafana."
   type        = string
-  default     = "10.0.0.0/8"
+  default     = "monitoring"
+}
+
+variable "monitoring_chart_version" {
+  description = "Pinned kube-prometheus-stack Helm chart version."
+  type        = string
+  default     = "69.8.2"
 }

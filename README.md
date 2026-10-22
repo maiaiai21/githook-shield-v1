@@ -1,56 +1,65 @@
 # GitHook Shield
 
-GitHook Shield stops hardcoded secrets and broken code before they reach a Git repository, then checks them again in CI. Scan results are stored in cloud-style storage, alerts go through a notification topic, and a live dashboard shows activity as it happens.
+GitHook Shield stops hardcoded secrets and broken code before they reach a Git repository, then checks them again in CI. It packages a small Flask app with Docker and runs it on a local Minikube Kubernetes cluster managed by Terraform. Prometheus and Grafana provide cluster-level monitoring.
 
-The project is a DevSecOps assignment. Everything runs locally or in GitHub Actions. It needs no AWS account, because LocalStack emulates the AWS services.
+The project uses open-source, local infrastructure and does not require AWS or LocalStack.
 
 ## What it does
 
 - **Blocks secrets at commit time.** A pre-commit hook runs a custom scanner on staged changes. It catches known token formats (AWS, GitHub, Slack, Stripe, Google, private keys) and high-entropy values assigned to credential-like names such as `password` or `api_key`.
 - **Blocks broken code at commit time.** Staged `.py`, `.json`, and `.sh` files must pass a syntax check.
 - **Re-checks everything in CI.** GitHub Actions runs the tests, scans every tracked file with the same scanner, scans the full Git history with TruffleHog, validates Terraform, builds the Docker image, and scans it with Trivy.
-- **Stores reports and sends alerts.** CI uploads scan reports to an S3 bucket and publishes failure alerts to an SNS topic. Terraform creates both.
+- **Builds and scans the app image.** GitHub Actions builds the Docker image and archives vulnerability reports as workflow artifacts.
+- **Deploys and monitors locally.** Terraform manages the Kubernetes app resources and installs Prometheus and Grafana for cluster metrics.
 - **Shows activity live.** A dashboard reads the scan log and updates within seconds.
 - **Measures itself.** A labeled dataset compares the scanner with Gitleaks and detect-secrets.
 
 ## Architecture
 
-```
-Developer
-   │ git commit
-   ▼
-Pre-commit hook ──► Scanner (secretscan.py) ──► scan-log.json ──► Dashboard
-   │
-   │ git push
-   ▼
-GitHub Actions
-   ├── test              unit tests (scanner and app)
-   ├── secret-scan       custom scanner + TruffleHog (full history)
-   ├── terraform         fmt, init, validate
-   ├── build-and-scan    Docker build, Trivy scan, report upload to S3
-   └── alert-on-failure  SNS alert when any job fails
+```mermaid
+flowchart TD
+    Dev[Developer] --> Hook[Pre-commit hook]
+    Hook --> Scanner[Secret and syntax scanner]
+    Scanner --> Log[Local scan-log.json]
+    Log --> ScanDashboard[Local scan activity dashboard]
 
-Terraform ──► LocalStack (S3, ECR, SNS, EC2, IAM, STS)  or real AWS
+    Dev -->|push or pull request| CI[GitHub Actions]
+    CI --> Tests[Tests and secret scans]
+    Tests --> Build[Build and scan Docker image]
+    Build --> Artifact[Scan report workflow artifact]
+    CI --> TFCheck[Terraform format and validation]
+
+    Dev -->|start| Cluster[Minikube Kubernetes cluster]
+    Dev -->|local deployment| Image[Build Docker image]
+    Image -->|minikube image build| Cluster
+    Dev -->|terraform apply| TF[Terraform]
+    TF --> App[App Deployment and ClusterIP Service]
+    TF --> Helm[Prometheus and Grafana Helm release]
+    Helm --> Metrics[Cluster metrics<br/>node and pod health, CPU, memory, restarts]
+    Metrics --> Grafana[Grafana dashboards]
+    App --> AppAccess[kubectl port-forward to app]
+    Grafana --> GrafanaAccess[kubectl port-forward to Grafana]
 ```
+
+CI checks Terraform configuration but does not apply it: the GitHub-hosted runner does not have access to the developer's Minikube cluster. Deployment and monitoring are applied locally after building the image into Minikube.
 
 ## Project structure
 
 ```
 .github/workflows/ci.yml     CI pipeline
 app/                         Flask service, Dockerfile, requirements
-dashboard/                   live dashboard and its README
-docker-compose.yml           LocalStack
+dashboard/                   local scan activity dashboard
 evaluation/                  labeled dataset, evaluation script, results
 hooks/pre-commit             commit-time hook
 scanner/secretscan.py        custom secret scanner and syntax checks
-scripts/                     install, demo, live sample, upload, and alert scripts
-terraform/                   AWS resources (S3, ECR, security group, SNS)
+scripts/                     install, demo, and live sample scripts
+terraform/                   Kubernetes app and Prometheus/Grafana resources
 tests/                       unit tests for the scanner and the app
 ```
 
 ## Quick start
 
-You need Python 3.12 or newer and Git. Docker, Terraform 1.9.8, and the AWS CLI are only needed for the LocalStack demo.
+For the local Kubernetes deployment, install Git, Python 3.12 or newer, Docker, Minikube, kubectl, and Terraform 1.9.8 or newer. Terraform's Helm provider installs the monitoring chart; the Helm CLI is optional. The scanner and unit tests can be used without Minikube or Terraform.
 
 ```
 pip install -r app/requirements.txt
@@ -91,11 +100,10 @@ Runs on pushes and pull requests to `main`.
 |---|---|
 | `test` | Runs the unit tests and a compile check |
 | `secret-scan` | Runs the custom scanner on every tracked file and TruffleHog on the full history |
-| `terraform` | Checks formatting, runs `init -backend=false`, and runs `validate` |
-| `build-and-scan` | Builds the Docker image, scans it with Trivy (fails on fixable HIGH and CRITICAL findings), and uploads the report to S3 |
-| `alert-on-failure` | Publishes an SNS alert when any job fails |
+| `terraform` | Checks formatting, initializes providers, and validates the Kubernetes configuration; it does not connect to or apply changes to Minikube |
+| `build-and-scan` | Builds the Docker image, scans it with Trivy (fails on fixable HIGH and CRITICAL findings), and archives the report as a workflow artifact |
 
-Steps that need AWS settings skip quietly when those settings are missing, so the pipeline still passes on a fresh fork.
+GitHub Actions runs CI checks only. Apply Terraform locally to deploy to your Minikube cluster.
 
 ### Application (`app/`)
 
@@ -106,22 +114,49 @@ python3 app/app.py
 curl http://localhost:5000/health
 ```
 
-### Infrastructure (`terraform/` and `docker-compose.yml`)
+### Local Kubernetes and monitoring (`terraform/`)
 
-Terraform creates:
+Terraform uses the current Minikube kubeconfig context to create the application namespace, Deployment, and ClusterIP Service. It also installs the Prometheus community `kube-prometheus-stack` chart with Alertmanager disabled. Prometheus scrapes Kubernetes and node metrics; Grafana provides dashboards for cluster and pod behavior. The Flask app itself is not instrumented with application-specific Prometheus metrics.
 
-- an S3 bucket for scan reports, with versioning, encryption, and public access blocked
-- an ECR repository with immutable tags, scan-on-push, and a lifecycle rule that keeps the last 10 images
-- a security group that allows the app port from a private network range
-- an SNS topic for alerts, with an optional email subscription
-
-LocalStack runs the same resources locally. Set `use_localstack = true` (the default) to point the provider at `http://localhost:4566`. To use real AWS, set it to `false` and configure credentials.
+Start Minikube with enough resources for the monitoring chart, then build the image directly into its image store:
 
 ```
-sh scripts/localstack-demo.sh
+minikube start --cpus=4 --memory=6144
+minikube addons enable metrics-server
+minikube image build -t githook-shield:dev ./app
 ```
 
-This starts LocalStack, applies Terraform, uploads a sample report, and publishes a sample alert. The script prints the topic and bucket names. A sample alert has no subscriber, so it doesn't show up anywhere else.
+Apply the Kubernetes resources:
+
+```
+cd terraform
+terraform init
+terraform validate
+terraform plan
+terraform apply
+```
+
+Access the app and Grafana in separate terminals:
+
+```
+kubectl port-forward -n githook-shield svc/githook-shield 5000:80
+kubectl port-forward -n monitoring svc/githook-shield-grafana 3000:80
+```
+
+Open `http://localhost:5000/health` and `http://localhost:3000`. Grafana's chart-generated admin password is stored in a Kubernetes Secret; retrieve it with:
+
+```
+kubectl get secret -n monitoring githook-shield-grafana \
+  -o jsonpath='{.data.admin-password}' | base64 --decode
+```
+
+Use the Grafana username `admin`. The Prometheus service is also available locally with:
+
+```
+kubectl port-forward -n monitoring svc/githook-shield-kube-promet-prometheus 9090:9090
+```
+
+Open `http://localhost:9090` to inspect Prometheus directly. `kubectl top nodes` and `kubectl top pods -A` show current resource usage through metrics-server. Terraform manages the app and Helm release; do not also apply `deployment.yaml` for the same app. Run `terraform destroy` to remove Terraform-managed resources from Minikube.
 
 ### Dashboard (`dashboard/`)
 
@@ -176,17 +211,8 @@ Scan times on the dataset are about 0.003 seconds for our scanner, about 1.4 sec
 - Pattern-based detection misses secrets in formats it doesn't know, and unusual names.
 - A short password below the entropy threshold passes. The demo shows this, and the threshold is deliberately unchanged to avoid more false positives.
 - The TruffleHog action is pinned to `@main`, not a release tag, so an upstream change could break the step.
-- The LocalStack demo is a local stand-in. It doesn't show a real AWS deployment, and the default Grafana and monitoring setup from the earlier Minikube work is not part of this version.
-
-## Repository secrets (for real AWS)
-
-The CI steps that upload reports and publish alerts read these secrets. Without them, those steps skip:
-
-- `REPORTS_BUCKET`
-- `SNS_TOPIC_ARN`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_REGION`
+- Cluster metrics cover Kubernetes and node behavior; the Flask app does not currently expose application metrics such as request rate or latency.
+- Prometheus and Grafana consume additional local CPU, memory, and disk. Start Minikube with sufficient resources for the monitoring chart.
 
 ## Running the tests
 
@@ -199,5 +225,4 @@ The scanner tests cover secret detection, false positives, syntax checks, and st
 ## Planned work
 
 - Pin the TruffleHog action to a release tag.
-- Add an SQS subscription to the alert topic, so alerts can be read back in the terminal.
-- Run the LocalStack demo end to end and record it for the presentation.
+- Add application-level metrics if request and latency monitoring becomes useful.

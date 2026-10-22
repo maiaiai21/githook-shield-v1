@@ -62,7 +62,7 @@ jobs:
         working-directory: terraform
         run: terraform fmt -check -recursive
 
-      - name: Validate (no backend, no AWS credentials needed)
+      - name: Validate configuration (does not connect to a cluster)
         working-directory: terraform
         run: |
           terraform init -backend=false -input=false
@@ -104,34 +104,3 @@ jobs:
           name: scan-reports
           path: trivy-report.json
           if-no-files-found: ignore
-
-      - name: Upload scan report to S3
-        if: always()
-        env:
-          REPORTS_BUCKET: ${{ secrets.REPORTS_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          if [ -f trivy-report.json ]; then
-            sh scripts/upload_report.sh trivy-report.json
-          fi
-
-  alert-on-failure:
-    name: Send SNS alert when the pipeline fails
-    needs: [test, secret-scan, terraform, build-and-scan]
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Publish alert
-        env:
-          SNS_TOPIC_ARN: ${{ secrets.SNS_TOPIC_ARN }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          sh scripts/publish_alert.sh \
-            "GitHook Shield: pipeline failed" \
-            "Commit ${{ github.sha }} on ${{ github.ref_name }} failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
